@@ -1,9 +1,0 @@
-rootProject.name = "Uchiharepo"
-
-include(":BlakitePlugin")
-include(":ZLivePlugin")
-include(":AnimeSaltPlugin")
-include(":RareAnimesPlugin")
-include(":NetMirrorTVPlugin")
-include(":FlixVisionPlugin")
-include(":CinevoodPlugin")

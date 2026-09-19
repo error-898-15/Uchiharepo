@@ -1,143 +1,58 @@
 [
   {
-    "name": "Blakite Anime",
-    "internalName": "BlakitePlugin",
-    "version": 1,
+    "iconUrl": "https://animesalt.cx/wp-content/uploads/cropped-AnimeSalticon-270x270.png",
+    "fileHash": "sha256-38d92ccbf26d4358701f8177138700fc14a84765f369ae472610821ab719d23b",
     "apiVersion": 1,
-    "description": "Blakite Anime - Watch Hindi & English Dubbed/Subbed Anime Online Free with multi-quality Rumble Cloud HLS streaming",
+    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo",
+    "fileSize": 25058,
+    "status": 1,
+    "language": "hi",
     "authors": [
       "error-898-15"
     ],
     "tvTypes": [
       "Anime",
       "AnimeMovie",
+      "Cartoon",
+      "Movie",
+      "TvSeries"
+    ],
+    "version": 2,
+    "internalName": "AnimeSaltPlugin",
+    "description": "AnimeSalt - Watch Hindi & Multi-Audio Anime & Movies with Original High-Speed FirePlayer CDN",
+    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/AnimeSaltPlugin.cs3",
+    "name": "AnimeSalt"
+  },
+  {
+    "iconUrl": "https://blogger.googleusercontent.com/img/a/AVvXsEgWJNM8v7dkKlHDuBncLOZsjiURJtbxv6de_W_TkIg75W51emlvr-3DATj02j__QUikkzjxhYKv8jYtQp4lc04xObvSTvthIHg_DA0Ud4SRiEUKqralljdfKnUumPN96NEBQwW6y0SpVKcCCPzuIwh8on5sgzjH7BT5PpR6_vp_qS7Qia8OMj04qz-DyMw=s937",
+    "fileHash": "sha256-d0ad8416be6428b6efbc7d4a18028eb6c556a852fa33ac4bfbc94afd331939cd",
+    "apiVersion": 1,
+    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo",
+    "fileSize": 27645,
+    "status": 1,
+    "language": "hi",
+    "authors": [
+      "error-898-15"
+    ],
+    "tvTypes": [
+      "Anime",
+      "Movie",
       "Cartoon"
     ],
-    "language": "hi",
-    "status": 1,
+    "version": 1,
+    "internalName": "BlakitePlugin",
+    "description": "Blakite Anime - Watch Hindi & English Dubbed/Subbed Anime Online Free with multi-quality Rumble Cloud HLS streaming",
     "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/BlakitePlugin.cs3",
-    "fileHash": "",
-    "fileSize": 0,
-    "iconUrl": "https://blogger.googleusercontent.com/img/a/AVvXsEgWJNM8v7dkKlHDuBncLOZsjiURJtbxv6de_W_TkIg75W51emlvr-3DATj02j__QUikkzjxhYKv8jYtQp4lc04xObvSTvthIHg_DA0Ud4SRiEUKqralljdfKnUumPN96NEBQwW6y0SpVKcCCPzuIwh8on5sgzjH7BT5PpR6_vp_qS7Qia8OMj04qz-DyMw=s937",
-    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo"
+    "name": "Blakite Anime"
   },
   {
-    "name": "ZLive",
-    "internalName": "ZLivePlugin",
-    "version": 2,
+    "iconUrl": "https://cinevood.rocks/wp-content/uploads/2020/07/favicon2.png",
+    "fileHash": "sha256-6121d3d8a53f05500f86c54d02a2ec5f3efea55bb9d1d6be408b02071928d477",
     "apiVersion": 1,
-    "description": "ZLive - Watch Live Sports, Events & Worldwide TV Channels Free",
-    "authors": [
-      "error-898-15"
-    ],
-    "tvTypes": [
-      "Live"
-    ],
-    "language": "en",
+    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo",
+    "fileSize": 32780,
     "status": 1,
-    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/ZLivePlugin.cs3",
-    "fileHash": "",
-    "fileSize": 0,
-    "iconUrl": "https://ui-avatars.com/api/?name=ZLive&background=0d0d0d&color=8288fe&size=512&bold=true&length=2",
-    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo"
-  },
-  {
-    "name": "AnimeSalt",
-    "internalName": "AnimeSaltPlugin",
-    "version": 1,
-    "apiVersion": 1,
-    "description": "AnimeSalt - Watch Hindi & Multi-Audio Anime & Movies with original high-speed FirePlayer CDN",
-    "authors": [
-      "error-898-15"
-    ],
-    "tvTypes": [
-      "Anime",
-      "AnimeMovie",
-      "Cartoon",
-      "Movie",
-      "TvSeries"
-    ],
     "language": "hi",
-    "status": 1,
-    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/AnimeSaltPlugin.cs3",
-    "fileHash": "",
-    "fileSize": 0,
-    "iconUrl": "https://animesalt.cx/wp-content/uploads/cropped-AnimeSalticon-270x270.png",
-    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo"
-  },
-  {
-    "name": "RareAnimes",
-    "internalName": "RareAnimesPlugin",
-    "version": 1,
-    "apiVersion": 1,
-    "description": "RareAnimes - Watch Hindi, Tamil, Telugu Dubbed Anime, Cartoons & Movies with StreamBeta, Mega & MultiQuality CDN",
-    "authors": [
-      "error-898-15"
-    ],
-    "tvTypes": [
-      "Anime",
-      "AnimeMovie",
-      "Cartoon",
-      "Movie",
-      "TvSeries"
-    ],
-    "language": "hi",
-    "status": 1,
-    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/RareAnimesPlugin.cs3",
-    "fileHash": "",
-    "fileSize": 0,
-    "iconUrl": "https://www.rareanimes.mov/wp-content/uploads/2023/11/cropped-Rare-Animes-India-192x192.png",
-    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo"
-  },
-  {
-    "name": "NetMirror TV",
-    "internalName": "NetMirrorTVPlugin",
-    "version": 1,
-    "apiVersion": 1,
-    "description": "NetMirror TV - Stream Netflix, Prime Video, and Hotstar Movies & TV Shows with Original Direct CDN",
-    "authors": [
-      "error-898-15"
-    ],
-    "tvTypes": [
-      "Movie",
-      "TvSeries",
-      "Anime"
-    ],
-    "language": "en",
-    "status": 1,
-    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/NetMirrorTVPlugin.cs3",
-    "fileHash": "",
-    "fileSize": 0,
-    "iconUrl": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/main/NetMirrorTVPlugin/icon.png",
-    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo"
-  },
-  {
-    "name": "FlixVision",
-    "internalName": "FlixVisionPlugin",
-    "version": 1,
-    "apiVersion": 1,
-    "description": "FlixVision - Movies, TV Series & Multi-Server Direct Streams (FVSTREAM, VidSrc, SmashyStream, AutoEmbed)",
-    "authors": [
-      "error-898-15"
-    ],
-    "tvTypes": [
-      "Movie",
-      "TvSeries"
-    ],
-    "language": "en",
-    "status": 1,
-    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/FlixVisionPlugin.cs3",
-    "fileHash": "",
-    "fileSize": 0,
-    "iconUrl": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/main/FlixVisionPlugin/icon.png",
-    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo"
-  }
-  {
-    "name": "CineVood",
-    "internalName": "CinevoodPlugin",
-    "version": 1,
-    "apiVersion": 1,
-    "description": "CineVood - Watch & Download Latest Bollywood, Hollywood & South Hindi Dubbed Movies & Web Series with Direct Fast & Multi-Server CDN",
     "authors": [
       "error-898-15"
     ],
@@ -147,12 +62,97 @@
       "Anime",
       "AsianDrama"
     ],
-    "language": "hi",
-    "status": 1,
+    "version": 1,
+    "internalName": "CinevoodPlugin",
+    "description": "CineVood - Watch & Download Latest Bollywood, Hollywood & South Hindi Dubbed Movies & Web Series with Direct Fast & Multi-Server CDN",
     "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/CinevoodPlugin.cs3",
-    "fileHash": "",
-    "fileSize": 0,
-    "iconUrl": "https://cinevood.rocks/wp-content/uploads/2020/07/favicon2.png",
-    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo"
+    "name": "CineVood"
+  },
+  {
+    "iconUrl": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/main/FlixVisionPlugin/icon.png",
+    "fileHash": "sha256-af88d93dd70225d83c0728ed9c6e0207ab80f3285a10e8870b1669bd02dfc8d3",
+    "apiVersion": 1,
+    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo",
+    "fileSize": 39457,
+    "status": 1,
+    "language": "en",
+    "authors": [
+      "error-898-15"
+    ],
+    "tvTypes": [
+      "Movie",
+      "TvSeries"
+    ],
+    "version": 1,
+    "internalName": "FlixVisionPlugin",
+    "description": "FlixVision - Movies, TV Series & Multi-Server Direct Streams (FVSTREAM, VidSrc, SmashyStream, AutoEmbed)",
+    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/FlixVisionPlugin.cs3",
+    "name": "FlixVision"
+  },
+  {
+    "iconUrl": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/main/NetMirrorTVPlugin/icon.png",
+    "fileHash": "sha256-567a9c4beccb1baf47b6df28a7c07380d13e5c8753e7e65103336b7025604aaa",
+    "apiVersion": 1,
+    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo",
+    "fileSize": 35269,
+    "status": 1,
+    "language": "en",
+    "authors": [
+      "error-898-15"
+    ],
+    "tvTypes": [
+      "Movie",
+      "TvSeries",
+      "Anime"
+    ],
+    "version": 1,
+    "internalName": "NetMirrorTVPlugin",
+    "description": "NetMirror TV - Stream Netflix, Prime Video, and Hotstar Movies & TV Shows with Original Direct CDN",
+    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/NetMirrorTVPlugin.cs3",
+    "name": "NetMirror TV"
+  },
+  {
+    "iconUrl": "https://www.rareanimes.mov/wp-content/uploads/2023/11/cropped-Rare-Animes-India-192x192.png",
+    "fileHash": "sha256-1ebc479884d1d8a17fd407099a8dd127fabef8926ba3c0a540f467caa5e9f326",
+    "apiVersion": 1,
+    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo",
+    "fileSize": 35915,
+    "status": 1,
+    "language": "hi",
+    "authors": [
+      "error-898-15"
+    ],
+    "tvTypes": [
+      "Anime",
+      "AnimeMovie",
+      "Cartoon",
+      "Movie",
+      "TvSeries"
+    ],
+    "version": 5,
+    "internalName": "RareAnimesPlugin",
+    "description": "RareAnimes - Watch Hindi, Tamil, Telugu Dubbed Anime, Cartoons & Movies with StreamBeta, Mega & MultiQuality CDN",
+    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/RareAnimesPlugin.cs3",
+    "name": "RareAnimes"
+  },
+  {
+    "iconUrl": "https://ui-avatars.com/api/?name=ZLive&background=0d0d0d&color=8288fe&size=512&bold=true&length=2",
+    "fileHash": "sha256-aa33b268da5427b02cdb570b6776343e3975423576ae8ed83cd0d51949ca3eba",
+    "apiVersion": 1,
+    "repositoryUrl": "https://github.com/error-898-15/Uchiharepo",
+    "fileSize": 29090,
+    "status": 1,
+    "language": "en",
+    "authors": [
+      "error-898-15"
+    ],
+    "tvTypes": [
+      "Live"
+    ],
+    "version": 3,
+    "internalName": "ZLivePlugin",
+    "description": "ZLive - Watch Live Sports, Events & Worldwide TV Channels Free",
+    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/ZLivePlugin.cs3",
+    "name": "ZLive"
   }
 ]
