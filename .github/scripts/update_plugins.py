@@ -5,12 +5,12 @@ import os
 import hashlib
 
 PLUGIN_META = {
+    'AnimeSaltPlugin': {
+        'name': 'AnimeSalt',
+        'iconUrl': 'https://animesalt.cx/wp-content/uploads/cropped-AnimeSalticon-270x270.png'
+    },
     'BlakitePlugin': {
         'name': 'Blakite Anime',
-        'iconUrl': 'https://blogger.googleusercontent.com/img/a/AVvXsEgWJNM8v7dkKlHDuBncLOZsjiURJtbxv6de_W_TkIg75W51emlvr-3DATj02j__QUikkzjxhYKv8jYtQp4lc04xObvSTvthIHg_DA0Ud4SRiEUKqralljdfKnUumPN96NEBQwW6y0SpVKcCCPzuIwh8on5sgzjH7BT5PpR6_vp_qS7Qia8OMj04qz-DyMw=s937'
-    },
-    'IstreamflarePlugin': {
-        'name': 'iStreamFlare',
         'iconUrl': 'https://blogger.googleusercontent.com/img/a/AVvXsEgWJNM8v7dkKlHDuBncLOZsjiURJtbxv6de_W_TkIg75W51emlvr-3DATj02j__QUikkzjxhYKv8jYtQp4lc04xObvSTvthIHg_DA0Ud4SRiEUKqralljdfKnUumPN96NEBQwW6y0SpVKcCCPzuIwh8on5sgzjH7BT5PpR6_vp_qS7Qia8OMj04qz-DyMw=s937'
     },
     'GogoanimePlugin': {
@@ -30,7 +30,7 @@ for cs3_file in glob.glob('**/*.cs3', recursive=True):
     try:
         with zipfile.ZipFile(cs3_file, 'r') as zin:
             items = {name: zin.read(name) for name in zin.namelist()}
-        
+            
         if 'manifest.json' in items:
             manifest = json.loads(items['manifest.json'].decode('utf-8'))
             for plugin_key, meta in PLUGIN_META.items():
@@ -38,7 +38,7 @@ for cs3_file in glob.glob('**/*.cs3', recursive=True):
                     manifest['name'] = meta['name']
                     if 'iconUrl' in meta:
                         manifest['iconUrl'] = meta['iconUrl']
-            
+                    
             items['manifest.json'] = json.dumps(manifest, indent=2).encode('utf-8')
             
             with zipfile.ZipFile(cs3_file, 'w', zipfile.ZIP_DEFLATED) as zout:
@@ -74,7 +74,7 @@ for pjson in ['build/plugins.json', 'plugins.json']:
                         if base in item.get('url', '') or iname in base:
                             item['fileHash'] = h
                             item['fileSize'] = sz
-
+                
                 with open(pjson, 'w') as f:
                     json.dump(data, f, indent=2)
                 print(f"Updated {pjson} with metadata and hashes.")
