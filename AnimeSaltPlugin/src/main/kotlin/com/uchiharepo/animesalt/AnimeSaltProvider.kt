@@ -62,82 +62,92 @@ class AnimeSaltProvider : MainAPI() {
         "$mainUrl/series/page/" to "Latest Series",
         "$mainUrl/movies/page/" to "Latest Movies",
         "$mainUrl/category/anime/page/" to "Anime Series",
-        "$mainUrl/category/cartoon/page/" to "Cartoons",
-        "$mainUrl/category/network/crunchyroll/page/" to "Crunchyroll",
-        "$mainUrl/category/network/disney-channel/page/" to "Disney Channel",
-        "$mainUrl/category/network/cartoon-network/page/" to "Cartoon Network",
-        "$mainUrl/category/network/hungama-tv/page/" to "Hungama TV",
-        "$mainUrl/category/network/netflix/page/" to "Netflix",
-        "$mainUrl/category/network/prime-video/page/" to "Prime Video"
+        "$mainUrl/category/cartoon/page/" to "Cartoons"
     )
 
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val url = if (page <= 1) {
-            request.data.removeSuffix("page/")
-        } else {
+    override suspend fun getMainPage(
+        page: Int,
+        request: MainPageRequest
+    ): HomePageResponse {
+        val url = if (request.data.endsWith("/page/")) {
             "${request.data}$page/"
+        } else {
+            "${request.data}$page"
         }
 
-        val document = app.get(
-            url,
-            headers = mapOf("User-Agent" to USER_AGENT, "Referer" to "$mainUrl/")
-        ).document
-
-        val homeItems = document.select("article.post").mapNotNull { article ->
-            toSearchResult(article)
+        val document = try {
+            app.get(
+                url,
+                headers = mapOf(
+                    "User-Agent" to USER_AGENT,
+                    "Referer" to "$mainUrl/",
+                    "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                ),
+                timeout = 30L
+            ).document
+        } catch (e: Exception) {
+            app.get(
+                request.data.removeSuffix("page/"),
+                headers = mapOf("User-Agent" to USER_AGENT, "Referer" to "$mainUrl/"),
+                timeout = 30L
+            ).document
         }
 
-        return newHomePageResponse(
-            list = HomePageList(
-                name = request.name,
-                list = homeItems,
-                isHorizontalImages = false
-            ),
-            hasNext = homeItems.isNotEmpty()
-        )
+        val items = document.select("article.post").mapNotNull { article ->
+            article.toSearchResult()
+        }
+
+        return newHomePageResponse(request.name, items)
     }
 
-    private fun toSearchResult(element: Element): SearchResponse? {
-        val link = element.selectFirst("a[href]")?.attr("href")?.trim() ?: return null
-        val title = element.selectFirst("img[alt]")?.attr("alt")?.replace("^Image\\s+".toRegex(), "")?.trim()
-            ?: element.selectFirst(".entry-title a, h2 a, h3 a")?.text()?.trim()
+    private fun Element.toSearchResult(): SearchResponse? {
+        val link = this.selectFirst("a.lnk-blk, a[href]")?.attr("href")?.trim() ?: return null
+        val title = this.selectFirst("h2.entry-title, .entry-title")?.text()?.trim()
+            ?: this.selectFirst("img[alt]")?.attr("alt")?.replace("^Image\\s+".toRegex(), "")?.trim()
             ?: return null
 
-        var poster = element.selectFirst("img[src]")?.attr("src")?.trim()
+        var poster = this.selectFirst("img")?.let {
+            val ds = it.attr("data-src").trim()
+            if (ds.isNotBlank()) ds else it.attr("src").trim()
+        }
         if (poster?.startsWith("//") == true) {
             poster = "https:$poster"
         }
 
-        val isMovie = element.hasClass("movies") || link.contains("/movies/")
-        val tvType = if (isMovie) TvType.Movie else TvType.TvSeries
+        val isMovie = link.contains("/movies/")
+        val tvType = if (isMovie) TvType.AnimeMovie else TvType.Anime
 
-        return if (isMovie) {
-            newMovieSearchResponse(title, link, tvType) {
-                this.posterUrl = poster
-            }
-        } else {
-            newTvSeriesSearchResponse(title, link, tvType) {
-                this.posterUrl = poster
-            }
+        return newAnimeSearchResponse(title, link, tvType) {
+            this.posterUrl = poster
         }
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val searchUrl = "$mainUrl/?s=${query.trim()}"
+        val searchUrl = "$mainUrl/?s=${query.trim().replace(" ", "+")}"
         val document = app.get(
             searchUrl,
-            headers = mapOf("User-Agent" to USER_AGENT, "Referer" to "$mainUrl/")
+            headers = mapOf(
+                "User-Agent" to USER_AGENT,
+                "Referer" to "$mainUrl/",
+                "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            ),
+            timeout = 30L
         ).document
 
         return document.select("article.post").mapNotNull { article ->
-            toSearchResult(article)
+            article.toSearchResult()
         }
     }
 
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(
             url,
-            headers = mapOf("User-Agent" to USER_AGENT, "Referer" to "$mainUrl/")
+            headers = mapOf(
+                "User-Agent" to USER_AGENT,
+                "Referer" to "$mainUrl/",
+                "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            ),
+            timeout = 30L
         ).document
 
         val title = document.selectFirst("h1")?.text()?.trim()
@@ -166,7 +176,7 @@ class AnimeSaltProvider : MainAPI() {
         val isMovie = url.contains("/movies/")
 
         if (isMovie) {
-            return newMovieLoadResponse(title, url, TvType.Movie, url) {
+            return newMovieLoadResponse(title, url, TvType.AnimeMovie, url) {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.plot = plot
@@ -215,7 +225,7 @@ class AnimeSaltProvider : MainAPI() {
 
             episodes.sortWith(compareBy({ it.season }, { it.episode }))
 
-            return newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
+            return newTvSeriesLoadResponse(title, url, TvType.Anime, episodes) {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.plot = plot
@@ -233,7 +243,12 @@ class AnimeSaltProvider : MainAPI() {
     ): Boolean {
         val document = app.get(
             data,
-            headers = mapOf("User-Agent" to USER_AGENT, "Referer" to "$mainUrl/")
+            headers = mapOf(
+                "User-Agent" to USER_AGENT,
+                "Referer" to "$mainUrl/",
+                "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            ),
+            timeout = 30L
         ).document
 
         var loadedAny = false
@@ -310,7 +325,8 @@ class AnimeSaltProvider : MainAPI() {
                                 "X-Requested-With" to "XMLHttpRequest",
                                 "Content-Type" to "application/x-www-form-urlencoded; charset=UTF-8"
                             ),
-                            data = mapOf("hash" to hash, "r" to "$mainUrl/")
+                            data = mapOf("hash" to hash, "r" to "$mainUrl/"),
+                            timeout = 30L
                         )
 
                         val videoData = try {
@@ -363,7 +379,11 @@ class AnimeSaltProvider : MainAPI() {
     ): Boolean {
         val abyssDoc = app.get(
             abyssUrl,
-            headers = mapOf("User-Agent" to USER_AGENT, "Referer" to "$mainUrl/")
+            headers = mapOf(
+                "User-Agent" to USER_AGENT,
+                "Referer" to "$mainUrl/"
+            ),
+            timeout = 30L
         ).text
 
         val datasMatch = Regex("""const\s+datas\s*=\s*[\"']([^\"']+)[\"']""").find(abyssDoc) ?: return false
