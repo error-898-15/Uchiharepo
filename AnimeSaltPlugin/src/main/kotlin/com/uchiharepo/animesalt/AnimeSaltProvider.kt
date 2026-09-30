@@ -11,10 +11,6 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import org.jsoup.nodes.Element
 import java.net.URLDecoder
-import java.security.MessageDigest
-import javax.crypto.Cipher
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 class AnimeSaltProvider : MainAPI() {
     override var mainUrl = "https://animesalt.cx"
@@ -34,28 +30,6 @@ class AnimeSaltProvider : MainAPI() {
     companion object {
         const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-
-        private fun md5Hex(str: String): String {
-            val md = MessageDigest.getInstance("MD5")
-            val digest = md.digest(str.toByteArray(Charsets.UTF_8))
-            return digest.joinToString("") { "%02x".format(it) }
-        }
-
-        private fun decryptAesCtr(cipherTextBytes: ByteArray, keyBytes: ByteArray, ivBytes: ByteArray): ByteArray {
-            val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-            val secretKey = SecretKeySpec(keyBytes, "AES")
-            val ivSpec = IvParameterSpec(ivBytes)
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
-            return cipher.doFinal(cipherTextBytes)
-        }
-
-        private fun encryptAesCtr(plainBytes: ByteArray, keyBytes: ByteArray, ivBytes: ByteArray): ByteArray {
-            val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-            val secretKey = SecretKeySpec(keyBytes, "AES")
-            val ivSpec = IvParameterSpec(ivBytes)
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec)
-            return cipher.doFinal(plainBytes)
-        }
     }
 
     override val mainPage = mainPageOf(
@@ -187,31 +161,72 @@ class AnimeSaltProvider : MainAPI() {
             val episodes = mutableListOf<Episode>()
             val seenUrls = mutableSetOf<String>()
 
-            val epRegex = Regex("""href=[\"'](https://animesalt\.cx/episode/([a-zA-Z0-9_-]+)-(\d+)x(\d+)/?)[\"']""", RegexOption.IGNORE_CASE)
-            epRegex.findAll(document.html()).forEach { match ->
-                val epUrl = match.groupValues[1]
-                if (!seenUrls.contains(epUrl)) {
-                    seenUrls.add(epUrl)
-                    val season = match.groupValues[3].toIntOrNull() ?: 1
-                    val epNumber = match.groupValues[4].toIntOrNull() ?: 1
+            fun parseEpisodesFromDoc(doc: org.jsoup.nodes.Document, defaultSeason: Int = 1) {
+                doc.select("article.episodes, li:has(article.episodes)").forEach { el ->
+                    val link = el.selectFirst("a.lnk-blk, a[href*='/episode/']")?.attr("href")?.trim() ?: return@forEach
+                    if (seenUrls.contains(link)) return@forEach
+                    seenUrls.add(link)
+
+                    val epNumberMatch = Regex("""(\d+)x(\d+)""").find(link)
+                    val season = epNumberMatch?.groupValues?.get(1)?.toIntOrNull() ?: defaultSeason
+                    val epNumber = epNumberMatch?.groupValues?.get(2)?.toIntOrNull() ?: 1
+
+                    val epTitle = el.selectFirst("h2.entry-title, .entry-title")?.text()?.trim()
+                        ?.replace("""^(?:Episode|Ep\.?)\s*\d+\s*[:\-]?\s*""".toRegex(RegexOption.IGNORE_CASE), "")
+                        ?.ifBlank { null }
+                        ?: "Episode $epNumber"
+
+                    var thumb = el.selectFirst("img")?.let {
+                        val ds = it.attr("data-src").trim()
+                        if (ds.isNotBlank()) ds else it.attr("src").trim()
+                    }
+                    if (thumb?.startsWith("//") == true) thumb = "https:$thumb"
+                    if (thumb?.contains("data:image") == true) thumb = null
+
                     episodes.add(
-                        newEpisode(epUrl) {
-                            this.name = "Episode $epNumber"
+                        newEpisode(link) {
+                            this.name = epTitle
                             this.season = season
                             this.episode = epNumber
+                            this.posterUrl = thumb
                         }
                     )
                 }
             }
 
+            // 1. Initial season episodes
+            parseEpisodesFromDoc(document, 1)
+
+            // 2. Fetch multi-seasons via AJAX (e.g. Naruto Shippuden Seasons 2-22)
+            val seasonButtons = document.select("a.season-btn[data-season][data-post], [data-season][data-post]")
+            for (btn in seasonButtons) {
+                val sNum = btn.attr("data-season").toIntOrNull() ?: continue
+                val postId = btn.attr("data-post").ifBlank { null } ?: continue
+                if (sNum <= 1) continue
+                try {
+                    val ajaxUrl = "$mainUrl/wp-admin/admin-ajax.php?action=action_select_season&season=$sNum&post=$postId"
+                    val seasonDoc = app.get(
+                        ajaxUrl,
+                        headers = mapOf(
+                            "User-Agent" to USER_AGENT,
+                            "Referer" to url,
+                            "X-Requested-With" to "XMLHttpRequest"
+                        ),
+                        timeout = 15L
+                    ).document
+                    parseEpisodesFromDoc(seasonDoc, sNum)
+                } catch (_: Exception) {}
+            }
+
+            // Fallback
             if (episodes.isEmpty()) {
-                document.select("a[href*='/episode/']").forEach { a ->
-                    val epUrl = a.attr("href").trim()
-                    if (epUrl.isNotBlank() && !seenUrls.contains(epUrl)) {
+                val epRegex = Regex("""href=[\"'](https://animesalt\.cx/episode/([a-zA-Z0-9_-]+)-(\d+)x(\d+)/?)[\"']""", RegexOption.IGNORE_CASE)
+                epRegex.findAll(document.html()).forEach { match ->
+                    val epUrl = match.groupValues[1]
+                    if (!seenUrls.contains(epUrl)) {
                         seenUrls.add(epUrl)
-                        val epNumberMatch = Regex("""(\d+)x(\d+)""").find(epUrl)
-                        val season = epNumberMatch?.groupValues?.get(1)?.toIntOrNull() ?: 1
-                        val epNumber = epNumberMatch?.groupValues?.get(2)?.toIntOrNull() ?: 1
+                        val season = match.groupValues[3].toIntOrNull() ?: 1
+                        val epNumber = match.groupValues[4].toIntOrNull() ?: 1
                         episodes.add(
                             newEpisode(epUrl) {
                                 this.name = "Episode $epNumber"
@@ -252,243 +267,141 @@ class AnimeSaltProvider : MainAPI() {
         ).document
 
         var loadedAny = false
-        val embedUrls = mutableListOf<String>()
 
+        // 1. High-speed Fast Original Servers & Downloads (Mega.nz, Drive, etc.)
+        val downloadButtons = document.select("a[href*='trdownload='], a.btn.sm.rnd.blk").mapNotNull {
+            val href = it.attr("href").trim()
+            if (href.contains("trdownload=")) href else null
+        }
+
+        for (dlLink in downloadButtons) {
+            try {
+                val fullDl = if (dlLink.startsWith("http")) dlLink else "$mainUrl$dlLink"
+                val res = app.get(
+                    fullDl,
+                    headers = mapOf("User-Agent" to USER_AGENT, "Referer" to data),
+                    timeout = 8L,
+                    followRedirects = true
+                )
+                val targetUrl = res.url
+                if (targetUrl.contains("mega.nz") || targetUrl.contains("drive.google.com") || targetUrl.contains("streamtape") || targetUrl.contains("filelions")) {
+                    if (loadExtractor(targetUrl, data, subtitleCallback, callback)) {
+                        loadedAny = true
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. Find all embed/player iframes
+        val embedUrls = mutableListOf<String>()
         document.select("iframe[src]").forEach {
             val src = it.attr("src").trim()
             if (src.isNotBlank()) embedUrls.add(src)
         }
-
         document.select("[data-src]").forEach {
             val src = it.attr("data-src").trim()
-            if (src.isNotBlank() && (src.contains("/video/") || src.contains("embed") || src.contains("player") || src.contains("multi-lang-plyr"))) {
+            if (src.isNotBlank() && (src.contains("embed") || src.contains("player") || src.contains("stream") || src.contains("multi-lang-plyr"))) {
                 embedUrls.add(src)
             }
         }
 
+        // 3. Process Iframes
         for (rawEmbed in embedUrls.distinct()) {
             val cleanUrl = if (rawEmbed.startsWith("//")) "https:$rawEmbed" else rawEmbed
 
+            // 3.1 Multi-Language Player
             if (cleanUrl.contains("multi-lang-plyr.php") || cleanUrl.contains("player.php?data=")) {
                 try {
                     val rawData = cleanUrl.substringAfter("data=").substringBefore("&")
-                    val decodedJson = String(Base64.decode(URLDecoder.decode(rawData, "UTF-8"), Base64.DEFAULT))
+                    val decodedJson = String(Base64.decode(URLDecoder.decode(rawData, "UTF-8"), Base64.DEFAULT), Charsets.UTF_8)
                     val langList = parseJson<List<MultiLangItem>>(decodedJson)
 
                     for (item in langList) {
                         val directLink = item.link ?: continue
                         val langLabel = item.language ?: "Audio"
 
-                        if (directLink.contains("abyssplayer.com")) {
-                            try {
-                                if (extractAbyssDirect(directLink, langLabel, callback)) {
-                                    loadedAny = true
-                                    continue
-                                }
-                            } catch (e: Exception) {
-                                // Fall through to standard extractor
-                            }
-                        }
-
                         try {
-                            if (loadExtractor(directLink, data, subtitleCallback, callback)) {
+                            if (loadExtractor(directLink, data, subtitleCallback) { link ->
+                                callback.invoke(
+                                    newExtractorLink(
+                                        source = this.name,
+                                        name = "$name [$langLabel] ${link.name}",
+                                        url = link.url,
+                                        type = link.type
+                                    ) {
+                                        this.referer = link.referer
+                                        this.headers = link.headers
+                                        this.quality = link.quality
+                                    }
+                                )
+                            }) {
                                 loadedAny = true
                             }
-                        } catch (e: Exception) {
-                            // Continue to next language
-                        }
+                        } catch (_: Exception) {}
                     }
-                } catch (e: Exception) {
-                    // Ignore malformed player params
-                }
-            } else if (cleanUrl.contains("abyssplayer.com")) {
+                } catch (_: Exception) {}
+            }
+            // 3.2 MegaPlay (HLS stream found in Boruto, etc.)
+            else if (cleanUrl.contains("megaplay")) {
                 try {
-                    if (extractAbyssDirect(cleanUrl, "Original", callback)) {
+                    val mpHtml = app.get(cleanUrl, headers = mapOf("User-Agent" to USER_AGENT, "Referer" to "$mainUrl/"), timeout = 15L).text
+                    val m3u8Match = Regex("""file:\s*['"]([^'"]+\.m3u8[^'"]*)['"]""").find(mpHtml)
+                    if (m3u8Match != null) {
+                        val m3u8Url = m3u8Match.groupValues[1]
+                        callback.invoke(
+                            newExtractorLink(
+                                source = this.name,
+                                name = "$name (MegaPlay HLS)",
+                                url = m3u8Url,
+                                type = ExtractorLinkType.M3U8
+                            ) {
+                                this.referer = cleanUrl
+                                this.headers = mapOf("Referer" to cleanUrl, "User-Agent" to USER_AGENT)
+                                this.quality = Qualities.P1080.value
+                            }
+                        )
                         loadedAny = true
                     }
-                } catch (e: Exception) {
-                    try {
-                        if (loadExtractor(cleanUrl, data, subtitleCallback, callback)) loadedAny = true
-                    } catch (_: Exception) {}
-                }
-            } else if (cleanUrl.contains("/video/") || cleanUrl.contains("as-cdn")) {
+                } catch (_: Exception) {}
+            }
+            // 3.3 MegaVid
+            else if (cleanUrl.contains("megavid")) {
                 try {
-                    val origin = Regex("""https?://[^/]+""").find(cleanUrl)?.value ?: continue
-                    val hash = cleanUrl.substringAfterLast("/video/").substringBefore("?").substringBefore("/")
-                    if (hash.isNotBlank()) {
-                        val getVideoUrl = "$origin/player/index.php?data=$hash&do=getVideo"
-                        val postRes = app.post(
-                            getVideoUrl,
-                            headers = mapOf(
-                                "Referer" to cleanUrl,
-                                "User-Agent" to USER_AGENT,
-                                "X-Requested-With" to "XMLHttpRequest",
-                                "Content-Type" to "application/x-www-form-urlencoded; charset=UTF-8"
-                            ),
-                            data = mapOf("hash" to hash, "r" to "$mainUrl/"),
-                            timeout = 30L
+                    val mvHtml = app.get(cleanUrl, headers = mapOf("User-Agent" to USER_AGENT, "Referer" to "$mainUrl/"), timeout = 15L).text
+                    val m3u8Match = Regex("""source:\s*['"]([^'"]+\.m3u8[^'"]*)['"]""").find(mvHtml)
+                    if (m3u8Match != null) {
+                        val m3u8Url = m3u8Match.groupValues[1]
+                        callback.invoke(
+                            newExtractorLink(
+                                source = this.name,
+                                name = "$name (MegaVid HLS)",
+                                url = m3u8Url,
+                                type = ExtractorLinkType.M3U8
+                            ) {
+                                this.referer = cleanUrl
+                                this.headers = mapOf("Referer" to cleanUrl, "User-Agent" to USER_AGENT)
+                                this.quality = Qualities.P1080.value
+                            }
                         )
-
-                        val videoData = try {
-                            parseJson<AnimeSaltVideoResponse>(postRes.text)
-                        } catch (e: Exception) {
-                            null
-                        }
-
-                        val streamUrl = videoData?.videoSource ?: videoData?.securedLink
-                        if (!streamUrl.isNullOrBlank()) {
-                            callback.invoke(
-                                newExtractorLink(
-                                    source = this.name,
-                                    name = "$name [Server 2 - Play]",
-                                    url = streamUrl,
-                                    type = if (streamUrl.contains(".m3u8")) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
-                                ) {
-                                    this.referer = "$origin/"
-                                    this.headers = mapOf(
-                                        "Referer" to "$origin/",
-                                        "User-Agent" to USER_AGENT
-                                    )
-                                    this.quality = Qualities.Unknown.value
-                                }
-                            )
-                            loadedAny = true
-                        }
+                        loadedAny = true
                     }
-                } catch (e: Exception) {
-                    // Silent failover
-                }
-            } else {
+                } catch (_: Exception) {}
+            }
+            // 3.4 General / External extractors
+            else {
                 try {
                     if (loadExtractor(cleanUrl, data, subtitleCallback, callback)) {
                         loadedAny = true
                     }
-                } catch (e: Exception) {
-                    // Ignore unsupported extractors
-                }
+                } catch (_: Exception) {}
             }
         }
 
         return loadedAny
     }
 
-    private suspend fun extractAbyssDirect(
-        abyssUrl: String,
-        audioLang: String,
-        callback: (ExtractorLink) -> Unit
-    ): Boolean {
-        val abyssDoc = app.get(
-            abyssUrl,
-            headers = mapOf(
-                "User-Agent" to USER_AGENT,
-                "Referer" to "$mainUrl/"
-            ),
-            timeout = 30L
-        ).text
-
-        val datasMatch = Regex("""const\s+datas\s*=\s*[\"']([^\"']+)[\"']""").find(abyssDoc) ?: return false
-        val base64Payload = datasMatch.groupValues[1]
-
-        val rawJson = String(Base64.decode(base64Payload, Base64.DEFAULT), Charsets.ISO_8859_1)
-        val abyssData = parseJson<AbyssPayload>(rawJson)
-        val mediaStr = abyssData.media ?: return false
-        val userId = abyssData.userId ?: return false
-        val slug = abyssData.slug ?: return false
-        val md5Id = abyssData.md5Id ?: return false
-
-        val keyStr = "$userId:$slug:$md5Id"
-        val md5Key = md5Hex(keyStr)
-        val keyBytes = md5Key.toByteArray(Charsets.UTF_8)
-        val ivBytes = keyBytes.copyOfRange(0, 16)
-
-        val cipherBytes = ByteArray(mediaStr.length) { i -> mediaStr[i].code.toByte() }
-        val plainBytes = decryptAesCtr(cipherBytes, keyBytes, ivBytes)
-        val decryptedJson = String(plainBytes, Charsets.UTF_8)
-
-        val mediaObj = parseJson<AbyssMediaResponse>(decryptedJson)
-        val sources = mediaObj.mp4?.sources ?: emptyList()
-        val domains = mediaObj.mp4?.domains ?: emptyList()
-
-        var foundStream = false
-        for (src in sources) {
-            val label = src.label ?: "Stream"
-            val size = src.size ?: continue
-            val resId = src.resId ?: continue
-            val sub = src.sub ?: ""
-            val domain = domains.find { it.contains(sub) } ?: domains.firstOrNull() ?: continue
-
-            val pathStr = "/mp4/$md5Id/$resId/$size?v=$slug"
-            val tokenKey = md5Hex(size.toString()).toByteArray(Charsets.UTF_8)
-            val tokenIv = tokenKey.copyOfRange(0, 16)
-            val tokenPlain = pathStr.toByteArray(Charsets.UTF_8)
-            val tokenCipher = encryptAesCtr(tokenPlain, tokenKey, tokenIv)
-
-            val tokenStr = String(tokenCipher, Charsets.ISO_8859_1)
-            val step1 = Base64.encodeToString(tokenStr.toByteArray(Charsets.ISO_8859_1), Base64.NO_WRAP).replace("=", "")
-            val token = Base64.encodeToString(step1.toByteArray(Charsets.UTF_8), Base64.NO_WRAP).replace("=", "")
-
-            val streamUrl = "https://$domain/sora/$size/$token"
-            val qualityInt = when (label.lowercase()) {
-                "1080p" -> Qualities.P1080.value
-                "720p" -> Qualities.P720.value
-                "480p" -> Qualities.P480.value
-                "360p" -> Qualities.P360.value
-                else -> Qualities.Unknown.value
-            }
-
-            callback.invoke(
-                newExtractorLink(
-                    source = this.name,
-                    name = "$name [$audioLang] $label",
-                    url = streamUrl,
-                    type = ExtractorLinkType.VIDEO
-                ) {
-                    this.referer = "https://abyssplayer.com/"
-                    this.headers = mapOf(
-                        "Referer" to "https://abyssplayer.com/",
-                        "User-Agent" to USER_AGENT
-                    )
-                    this.quality = qualityInt
-                }
-            )
-            foundStream = true
-        }
-
-        return foundStream
-    }
-
     data class MultiLangItem(
         @JsonProperty("language") val language: String? = null,
         @JsonProperty("link") val link: String? = null
-    )
-
-    data class AbyssPayload(
-        @JsonProperty("slug") val slug: String? = null,
-        @JsonProperty("user_id") val userId: Long? = null,
-        @JsonProperty("md5_id") val md5Id: Long? = null,
-        @JsonProperty("media") val media: String? = null
-    )
-
-    data class AbyssMediaResponse(
-        @JsonProperty("mp4") val mp4: AbyssMp4Data? = null
-    )
-
-    data class AbyssMp4Data(
-        @JsonProperty("sources") val sources: List<AbyssSource>? = null,
-        @JsonProperty("domains") val domains: List<String>? = null
-    )
-
-    data class AbyssSource(
-        @JsonProperty("label") val label: String? = null,
-        @JsonProperty("res_id") val resId: Int? = null,
-        @JsonProperty("size") val size: Long? = null,
-        @JsonProperty("codec") val codec: String? = null,
-        @JsonProperty("sub") val sub: String? = null
-    )
-
-    data class AnimeSaltVideoResponse(
-        @JsonProperty("hls") val hls: Boolean? = null,
-        @JsonProperty("videoSource") val videoSource: String? = null,
-        @JsonProperty("securedLink") val securedLink: String? = null
     )
 }
