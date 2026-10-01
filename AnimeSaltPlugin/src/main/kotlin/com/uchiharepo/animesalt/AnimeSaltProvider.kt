@@ -6,9 +6,9 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
-import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.net.URLDecoder
 
@@ -161,7 +161,7 @@ class AnimeSaltProvider : MainAPI() {
             val episodes = mutableListOf<Episode>()
             val seenUrls = mutableSetOf<String>()
 
-            fun parseEpisodesFromDoc(doc: org.jsoup.nodes.Document, defaultSeason: Int = 1) {
+            fun parseEpisodesFromDoc(doc: Document, defaultSeason: Int = 1) {
                 doc.select("article.episodes, li:has(article.episodes)").forEach { el ->
                     val link = el.selectFirst("a.lnk-blk, a[href*='/episode/']")?.attr("href")?.trim() ?: return@forEach
                     if (seenUrls.contains(link)) return@forEach
@@ -321,20 +321,7 @@ class AnimeSaltProvider : MainAPI() {
                         val langLabel = item.language ?: "Audio"
 
                         try {
-                            if (loadExtractor(directLink, data, subtitleCallback) { link ->
-                                callback.invoke(
-                                    newExtractorLink(
-                                        source = this.name,
-                                        name = "$name [$langLabel] ${link.name}",
-                                        url = link.url,
-                                        type = link.type
-                                    ) {
-                                        this.referer = link.referer
-                                        this.headers = link.headers
-                                        this.quality = link.quality
-                                    }
-                                )
-                            }) {
+                            if (loadExtractor(directLink, data, subtitleCallback, callback)) {
                                 loadedAny = true
                             }
                         } catch (_: Exception) {}
@@ -357,7 +344,6 @@ class AnimeSaltProvider : MainAPI() {
                             ) {
                                 this.referer = cleanUrl
                                 this.headers = mapOf("Referer" to cleanUrl, "User-Agent" to USER_AGENT)
-                                this.quality = Qualities.P1080.value
                             }
                         )
                         loadedAny = true
@@ -380,7 +366,6 @@ class AnimeSaltProvider : MainAPI() {
                             ) {
                                 this.referer = cleanUrl
                                 this.headers = mapOf("Referer" to cleanUrl, "User-Agent" to USER_AGENT)
-                                this.quality = Qualities.P1080.value
                             }
                         )
                         loadedAny = true
