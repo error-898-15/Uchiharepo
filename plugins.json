@@ -57,5 +57,26 @@
     "language": "en",
     "iconUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/512px-YouTube_full-color_icon_%282017%29.svg.png",
     "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/YoutubePlugin.cs3"
+  },
+  {
+    "name": "StreamXTV",
+    "internalName": "StreamxPlugin",
+    "pluginClassName": "com.uchiharepo.streamx.StreamxPlugin",
+    "version": 1,
+    "apiVersion": 1,
+    "status": 1,
+    "authors": [
+      "error-898-15"
+    ],
+    "description": "StreamXTV - Watch Movies, TV Shows & Anime Free in HD with Fast Multi-Quality Streams",
+    "tvTypes": [
+      "Movie",
+      "TvSeries",
+      "Anime",
+      "AnimeMovie"
+    ],
+    "language": "en",
+    "iconUrl": "https://streamxtv.tech/logo.svg",
+    "url": "https://raw.githubusercontent.com/error-898-15/Uchiharepo/builds/StreamxPlugin.cs3"
   }
-    ]
+]
