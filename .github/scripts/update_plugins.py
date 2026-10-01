@@ -16,6 +16,10 @@ PLUGIN_META = {
     'YoutubePlugin': {
         'name': 'YouTube',
         'iconUrl': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/YouTube_full-color_icon_%282017%29.svg/512px-YouTube_full-color_icon_%282017%29.svg.png'
+    },
+    'StreamxPlugin': {
+        'name': 'StreamXTV',
+        'iconUrl': 'https://streamxtv.tech/logo.svg'
     }
 }
 
@@ -26,7 +30,7 @@ for cs3_file in glob.glob('**/*.cs3', recursive=True):
     try:
         with zipfile.ZipFile(cs3_file, 'r') as zin:
             items = {name: zin.read(name) for name in zin.namelist()}
-            
+        
         if 'manifest.json' in items:
             manifest = json.loads(items['manifest.json'].decode('utf-8'))
             for plugin_key, meta in PLUGIN_META.items():
@@ -34,7 +38,7 @@ for cs3_file in glob.glob('**/*.cs3', recursive=True):
                     manifest['name'] = meta['name']
                     if 'iconUrl' in meta:
                         manifest['iconUrl'] = meta['iconUrl']
-                    
+            
             items['manifest.json'] = json.dumps(manifest, indent=2).encode('utf-8')
             
             with zipfile.ZipFile(cs3_file, 'w', zipfile.ZIP_DEFLATED) as zout:
@@ -70,10 +74,10 @@ for pjson in ['build/plugins.json', 'plugins.json']:
                         if base in item.get('url', '') or iname in base:
                             item['fileHash'] = h
                             item['fileSize'] = sz
-                
-                with open(pjson, 'w') as f:
-                    json.dump(data, f, indent=2)
-                print(f"Updated {pjson} with metadata and hashes.")
+            
+            with open(pjson, 'w') as f:
+                json.dump(data, f, indent=2)
+            print(f"Updated {pjson} with metadata and hashes.")
         except Exception as e:
             print(f"Error updating {pjson}: {e}")
 
