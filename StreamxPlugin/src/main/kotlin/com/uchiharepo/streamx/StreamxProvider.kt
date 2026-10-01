@@ -11,6 +11,8 @@ import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLEncoder
 import java.util.regex.Pattern
@@ -36,6 +38,7 @@ class StreamxProvider : MainAPI() {
         private const val CINEJOY_REFERER = "https://cinejoy.pk/"
         private const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        private val httpClient = OkHttpClient()
     }
 
     data class StreamxListResponse(
@@ -121,6 +124,26 @@ class StreamxProvider : MainAPI() {
         @JsonProperty("playlist") val playlist: String? = null
     )
 
+    private fun decodeBase64(str: String): ByteArray {
+        var s = str.replace('-', '+').replace('_', '/')
+        while (s.length % 4 != 0) {
+            s += "="
+        }
+        return try {
+            android.util.Base64.decode(s, android.util.Base64.DEFAULT)
+        } catch (e: Throwable) {
+            java.util.Base64.getDecoder().decode(s)
+        }
+    }
+
+    private fun encodeBase64Url(bytes: ByteArray): String {
+        return try {
+            android.util.Base64.encodeToString(bytes, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP).trimEnd('=')
+        } catch (e: Throwable) {
+            java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        }
+    }
+
     private suspend fun apiGet(endpoint: String): String? {
         val headers = mapOf("User-Agent" to USER_AGENT, "Accept" to "application/json")
         return try {
@@ -139,34 +162,42 @@ class StreamxProvider : MainAPI() {
 
         val trendingJson = apiGet("/trending?page=1&type=all&time_window=day")
         if (!trendingJson.isNullOrBlank()) {
-            val items = parseJson<StreamxListResponse>(trendingJson).results.orEmpty()
-            if (items.isNotEmpty()) {
-                sections.add(HomePageList("Trending Today", items.mapNotNull { it.toSearchResponse() }))
-            }
+            try {
+                val items = parseJson<StreamxListResponse>(trendingJson).results.orEmpty()
+                if (items.isNotEmpty()) {
+                    sections.add(HomePageList("Trending Today", items.mapNotNull { it.toSearchResponse() }))
+                }
+            } catch (e: Exception) {}
         }
 
         val moviesJson = apiGet("/movies?page=1&sort=popularity.desc")
         if (!moviesJson.isNullOrBlank()) {
-            val items = parseJson<StreamxListResponse>(moviesJson).results.orEmpty()
-            if (items.isNotEmpty()) {
-                sections.add(HomePageList("Popular Movies", items.mapNotNull { it.toSearchResponse() }))
-            }
+            try {
+                val items = parseJson<StreamxListResponse>(moviesJson).results.orEmpty()
+                if (items.isNotEmpty()) {
+                    sections.add(HomePageList("Popular Movies", items.mapNotNull { it.toSearchResponse() }))
+                }
+            } catch (e: Exception) {}
         }
 
         val tvJson = apiGet("/tv?page=1&sort=popularity.desc")
         if (!tvJson.isNullOrBlank()) {
-            val items = parseJson<StreamxListResponse>(tvJson).results.orEmpty()
-            if (items.isNotEmpty()) {
-                sections.add(HomePageList("Popular TV Shows", items.mapNotNull { it.toSearchResponse() }))
-            }
+            try {
+                val items = parseJson<StreamxListResponse>(tvJson).results.orEmpty()
+                if (items.isNotEmpty()) {
+                    sections.add(HomePageList("Popular TV Shows", items.mapNotNull { it.toSearchResponse() }))
+                }
+            } catch (e: Exception) {}
         }
 
         val animeJson = apiGet("/anime/trending")
         if (!animeJson.isNullOrBlank()) {
-            val items = parseJson<StreamxListResponse>(animeJson).results.orEmpty()
-            if (items.isNotEmpty()) {
-                sections.add(HomePageList("Trending Anime", items.mapNotNull { it.toSearchResponse(forceAnime = true) }))
-            }
+            try {
+                val items = parseJson<StreamxListResponse>(animeJson).results.orEmpty()
+                if (items.isNotEmpty()) {
+                    sections.add(HomePageList("Trending Anime", items.mapNotNull { it.toSearchResponse(forceAnime = true) }))
+                }
+            } catch (e: Exception) {}
         }
 
         return newHomePageResponse(sections)
@@ -212,9 +243,7 @@ class StreamxProvider : MainAPI() {
             try {
                 val items = parseJson<StreamxListResponse>(mediaJson).results.orEmpty()
                 results.addAll(items.mapNotNull { it.toSearchResponse() })
-            } catch (e: Exception) {
-                // Ignore parsing errors
-            }
+            } catch (e: Exception) {}
         }
 
         val animeJson = apiGet("/anime/search?q=$encoded")
@@ -222,9 +251,7 @@ class StreamxProvider : MainAPI() {
             try {
                 val animeItems = parseJson<StreamxListResponse>(animeJson).results.orEmpty()
                 results.addAll(animeItems.mapNotNull { it.toSearchResponse(forceAnime = true) })
-            } catch (e: Exception) {
-                // Ignore parsing errors
-            }
+            } catch (e: Exception) {}
         }
 
         return results
@@ -386,17 +413,13 @@ class StreamxProvider : MainAPI() {
                     )
                     loadedAny = true
                 }
-            } catch (e: Exception) {
-                // Ignore and proceed
-            }
+            } catch (e: Exception) {}
 
             try {
                 if (loadExtractor("https://vidnest.fun/animepahe/$id/$episode/sub", data, subtitleCallback, callback)) {
                     loadedAny = true
                 }
-            } catch (e: Exception) {
-                // Ignore
-            }
+            } catch (e: Exception) {}
 
             return loadedAny
         }
@@ -418,30 +441,21 @@ class StreamxProvider : MainAPI() {
                 val stateObj = encResp.result?.state
 
                 if (!b64Data.isNullOrBlank()) {
-                    var normB64 = b64Data.replace('-', '+').replace('_', '/')
-                    while (normB64.length % 4 != 0) {
-                        normB64 += "="
-                    }
-
-                    val rawPayload = android.util.Base64.decode(normB64, android.util.Base64.DEFAULT)
+                    val rawPayload = decodeBase64(b64Data)
                     val reqBody = rawPayload.toRequestBody("application/octet-stream".toMediaTypeOrNull())
 
-                    val gBytes = app.post(
-                        WING_GATEWAY,
-                        headers = mapOf(
-                            "Content-Type" to "application/octet-stream",
-                            "Accept" to "application/json, text/plain, */*",
-                            "User-Agent" to USER_AGENT
-                        ),
-                        requestBody = reqBody
-                    ).body.bytes()
+                    val req = Request.Builder()
+                        .url(WING_GATEWAY)
+                        .post(reqBody)
+                        .addHeader("Content-Type", "application/octet-stream")
+                        .addHeader("Accept", "application/json, text/plain, */*")
+                        .addHeader("User-Agent", USER_AGENT)
+                        .build()
+
+                    val gBytes = httpClient.newCall(req).execute().body?.bytes() ?: ByteArray(0)
 
                     if (gBytes.isNotEmpty()) {
-                        val b64G = android.util.Base64.encodeToString(
-                            gBytes,
-                            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP
-                        ).trimEnd('=')
-
+                        val b64G = encodeBase64Url(gBytes)
                         val decPayload = mapOf("text" to b64G, "state" to stateObj)
                         val decRespText = app.post(
                             "$CINEJOY_ENC_API/dec-cinejoy",
@@ -488,17 +502,13 @@ class StreamxProvider : MainAPI() {
                                         ).forEach { subLink ->
                                             callback.invoke(subLink)
                                         }
-                                    } catch (e: Exception) {
-                                        // Ignore sub-stream extraction errors
-                                    }
+                                    } catch (e: Exception) {}
                                 }
                             }
                         }
                     }
                 }
-            } catch (e: Exception) {
-                // Continue to next server in cluster
-            }
+            } catch (e: Exception) {}
         }
 
         val mirrorEmbeds = if (isMovie) {
@@ -526,9 +536,7 @@ class StreamxProvider : MainAPI() {
                 if (loadExtractor(embedUrl, data, subtitleCallback, callback)) {
                     loadedAny = true
                 }
-            } catch (e: Exception) {
-                // Continue
-            }
+            } catch (e: Exception) {}
         }
 
         return loadedAny
