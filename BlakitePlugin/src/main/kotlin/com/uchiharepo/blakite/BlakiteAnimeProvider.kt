@@ -103,44 +103,34 @@ class BlakiteAnimeProvider : MainAPI() {
     )
 
     private suspend fun fetchCatalog(): CatalogData? {
-        val response = app.get(
-            "$API_URL/api/getAllAnime.php",
-            headers = mapOf("User-Agent" to USER_AGENT)
-        ).text
-        return parseJson<AnimeCatalogResponse>(response).data
+        return try {
+            val response = app.get(
+                "$API_URL/api/getAllAnime.php",
+                headers = mapOf("User-Agent" to USER_AGENT)
+            ).text
+            parseJson<AnimeCatalogResponse>(response).data
+        } catch (e: Exception) {
+            null
+        }
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val catalog = fetchCatalog() ?: return newHomePageResponse(emptyList())
         val homeSections = ArrayList<HomePageList>()
 
-        // 1. Latest Anime Series
         val seriesList = catalog.series?.values?.mapNotNull { it.toSearchResponse() }
         if (!seriesList.isNullOrEmpty()) {
             homeSections.add(HomePageList("Latest Anime Series", seriesList.take(25)))
         }
 
-        // 2. Anime Movies
         val moviesList = catalog.movies?.values?.mapNotNull { it.toSearchResponse() }
         if (!moviesList.isNullOrEmpty()) {
-            homeSections.add(HomePageList("Anime Movies", moviesList.take(25)))
+            homeSections.add(HomePageList("Latest Anime Movies", moviesList.take(25)))
         }
 
-        // 3. Hindi Dubbed & Subbed Anime
-        val allItems = (catalog.series?.values.orEmpty() + catalog.movies?.values.orEmpty())
-        val hindiList = allItems.filter {
-            it.language?.contains("Hindi", ignoreCase = true) == true
-        }.mapNotNull { it.toSearchResponse() }
-        if (hindiList.isNotEmpty()) {
-            homeSections.add(HomePageList("Hindi Dubbed & Subbed", hindiList.take(25)))
-        }
-
-        // 4. English Dubbed & Subbed Anime
-        val englishList = allItems.filter {
-            it.language?.contains("English", ignoreCase = true) == true
-        }.mapNotNull { it.toSearchResponse() }
-        if (englishList.isNotEmpty()) {
-            homeSections.add(HomePageList("English Dubbed & Subbed", englishList.take(25)))
+        val dramasList = catalog.dramas?.values?.mapNotNull { it.toSearchResponse() }
+        if (!dramasList.isNullOrEmpty()) {
+            homeSections.add(HomePageList("Anime Dramas", dramasList.take(25)))
         }
 
         return newHomePageResponse(homeSections)
@@ -183,7 +173,6 @@ class BlakiteAnimeProvider : MainAPI() {
 
         val catalog = fetchCatalog() ?: return null
         val allItems = catalog.series.orEmpty() + catalog.movies.orEmpty() + catalog.dramas.orEmpty()
-
         val animeItem = allItems[tmdbId] ?: allItems.values.firstOrNull { it.tmdbId == tmdbId }
             ?: return null
 
@@ -209,12 +198,11 @@ class BlakiteAnimeProvider : MainAPI() {
                 this.backgroundPosterUrl = backdrop
                 this.plot = synopsis
                 this.year = year
-                this.score = Score.from10(ratingStr)
+                this.rating = ratingStr?.toDoubleOrNull()?.let { (it * 1000).toInt() }
                 this.tags = genres
             }
         }
 
-        // Series with seasons and episodes
         val episodes = ArrayList<Episode>()
         val seasonsMap = animeItem.seasons.orEmpty()
 
@@ -222,7 +210,6 @@ class BlakiteAnimeProvider : MainAPI() {
             seasonsMap.forEach { (seasonKey, seasonObj) ->
                 val seasonNum = seasonObj.seasonNumber ?: seasonKey.toIntOrNull() ?: 1
                 val totalEps = seasonObj.totalEpisodes ?: 1
-
                 for (epNum in 1..totalEps) {
                     val passData = EpisodePassData(
                         tmdbId = animeItem.tmdbId ?: tmdbId,
@@ -242,7 +229,6 @@ class BlakiteAnimeProvider : MainAPI() {
                 }
             }
         } else {
-            // Fallback single episode
             val passData = EpisodePassData(
                 tmdbId = animeItem.tmdbId ?: tmdbId,
                 season = 1,
@@ -265,7 +251,7 @@ class BlakiteAnimeProvider : MainAPI() {
             this.backgroundPosterUrl = backdrop
             this.plot = synopsis
             this.year = year
-           this.score = Score.from10(ratingStr)
+            this.rating = ratingStr?.toDoubleOrNull()?.let { (it * 1000).toInt() }
             this.tags = genres
         }
     }
@@ -276,7 +262,12 @@ class BlakiteAnimeProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val passData = parseJson<EpisodePassData>(data)
+        val passData = try {
+            parseJson<EpisodePassData>(data)
+        } catch (e: Exception) {
+            return false
+        }
+
         val tmdbId = passData.tmdbId
         val season = passData.season
         val episode = passData.episode
@@ -316,17 +307,17 @@ class BlakiteAnimeProvider : MainAPI() {
         val rangesStr = streamObj.ranges.orEmpty()
         val format = streamObj.format ?: "M3U8"
 
-        // 1. Parse M3U8 multi-quality ranges and invoke HLS ExtractorLinks
+        var loadedAny = false
+
         if (format == "M3U8" && rangesStr.isNotBlank()) {
             val rangeLines = rangesStr.split("\n")
             val rangeRegex = Pattern.compile("^(\\d+-\\d+)\\s*\\(([^)]+)\\)")
-
             for (line in rangeLines) {
                 val trimmedLine = line.trim()
                 val matcher = rangeRegex.matcher(trimmedLine)
                 if (matcher.find()) {
                     val range = matcher.group(1)
-                    val label = matcher.group(2).trim() // e.g. 720p, 480p
+                    val label = matcher.group(2).trim()
                     val code = QUALITY_CODES[label] ?: "gaa"
                     val streamUrl =
                         "$BASE_STREAM_URL$dataId.$code.tar?r_file=chunklist.m3u8&r_type=application%2Fvnd.apple.mpegurl&r_range=$range"
@@ -342,11 +333,11 @@ class BlakiteAnimeProvider : MainAPI() {
                             this.quality = getQualityInt(label)
                         }
                     )
+                    loadedAny = true
                 }
             }
         }
 
-        // 2. Direct MP4 fallback link
         val mp4Url = "$BASE_STREAM_URL$dataId.gaa.mp4"
         callback.invoke(
             newExtractorLink(
@@ -359,8 +350,9 @@ class BlakiteAnimeProvider : MainAPI() {
                 this.quality = Qualities.P720.value
             }
         )
+        loadedAny = true
 
-        return true
+        return loadedAny
     }
 
     private fun getQualityInt(quality: String): Int {
